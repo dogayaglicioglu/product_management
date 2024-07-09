@@ -1,13 +1,13 @@
 package routes
 
 import (
+	"net/http"
 	"product_management/handlers"
+	"product_management/middleware"
 
 	"github.com/gorilla/mux"
 )
 
 func SetUpRoutes(r *mux.Router) {
-	//r.HandleFunc("/validate", handlers.Authorization).Methods.("GET")
-	r.HandleFunc("/api/users", handlers.GetUsers).Methods("GET")
-
+	r.Handle("/api/users", middleware.Authorization(http.HandlerFunc(handlers.GetUsers))).Methods("GET")
 }

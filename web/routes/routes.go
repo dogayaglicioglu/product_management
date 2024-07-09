@@ -9,5 +9,7 @@ import (
 )
 
 func SetUpRoutes(r *mux.Router) {
-	r.Handle("/api/users", middleware.Authorization(http.HandlerFunc(handlers.GetUsers))).Methods("GET")
+	//they are same now
+	r.Handle("/api/showUser", middleware.Authorization(http.HandlerFunc(handlers.GetUsers))).Methods("GET")
+	r.Handle("/api/showUsers", middleware.Authorization(http.HandlerFunc(handlers.GetUsers))).Methods("GET")
 }

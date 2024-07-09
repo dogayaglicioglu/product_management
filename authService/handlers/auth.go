@@ -4,6 +4,7 @@ import (
 	"auth-service/database"
 	"auth-service/models"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -47,17 +48,32 @@ func Verify(w http.ResponseWriter, r *http.Request) {
 }
 
 func Register(w http.ResponseWriter, r *http.Request) {
-	var user models.AuthUser
+	var authUser models.AuthUser
+	json.NewDecoder(r.Body).Decode(&authUser)
 
-	json.NewDecoder(r.Body).Decode(&user)
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(authUser.Password), bcrypt.DefaultCost)
 	if err != nil {
 		http.Error(w, "Server error", http.StatusInternalServerError)
 		return
 	}
 
-	user.Password = string(hashedPassword)
+	authUser.Password = string(hashedPassword)
+	if err := db.Create(&authUser).Error; err != nil {
+		http.Error(w, "Could not create user", http.StatusBadRequest)
+		return
+	}
+	var foundedUser models.AuthUser
+	if err := db.Where("username = ?", authUser.Username).First(&foundedUser).Error; err != nil {
+		fmt.Print("Error in here %v", err)
+		http.Error(w, "User not found after creation", http.StatusNotFound)
+		return
+	}
+
+	user := models.User{
+		AuthUserID: foundedUser.ID,
+		Username:   foundedUser.Username,
+	}
+
 	if err := db.Create(&user).Error; err != nil {
 		http.Error(w, "Could not create user", http.StatusBadRequest)
 		return

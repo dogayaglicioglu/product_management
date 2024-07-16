@@ -4,11 +4,13 @@ import (
 	"auth-service/database"
 	"auth-service/models"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -28,6 +30,75 @@ func Init(database database.DbInstance) {
 
 }
 
+func Delete(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	username := vars["username"]
+	if username != "" {
+		http.Error(w, "The username must be entered.", http.StatusBadRequest)
+		return
+	}
+
+	var foundedUser models.AuthUser
+	// Find the user by username
+	result := db.Where("username = ?", username).First(&foundedUser)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			http.Error(w, "The user is not found, so you can't delete it", http.StatusNotFound)
+		} else {
+			http.Error(w, "Error fetching user from the database", http.StatusInternalServerError)
+		}
+		return
+	}
+	if err := db.Delete(&foundedUser).Error; err != nil {
+		http.Error(w, "Error in deleting user", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+
+}
+
+func Update(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	username := vars["username"] //exists username
+	if username != "" {
+		http.Error(w, "The username must be entered.", http.StatusBadRequest)
+		return
+	}
+
+	var updatedUser models.AuthUser
+	if err := json.NewDecoder(r.Body).Decode(&updatedUser); err != nil {
+		http.Error(w, "The user couldn't found.", http.StatusInternalServerError)
+		return
+	}
+	var foundedUser models.AuthUser
+	if err := db.Where("username = ?", username).First(&foundedUser).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			http.Error(w, "User not found", http.StatusNotFound)
+		} else {
+			http.Error(w, "Error fetching user from the database", http.StatusInternalServerError)
+		}
+		return
+	}
+	if updatedUser.Username != "" {
+		foundedUser.Username = updatedUser.Username
+	}
+	if updatedUser.Password != "" {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(updatedUser.Password), bcrypt.DefaultCost)
+		if err != nil {
+			http.Error(w, "Error hashing password", http.StatusInternalServerError)
+			return
+		}
+		foundedUser.Password = string(hashedPassword)
+
+	}
+	foundedUser.Password = updatedUser.Password
+	if err := db.Save(&foundedUser).Error; err != nil {
+		http.Error(w, "Error updating user in the database", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
 func Verify(w http.ResponseWriter, r *http.Request) {
 	tokenStr := r.URL.Query().Get("token")
 	if tokenStr == "" {
@@ -49,8 +120,26 @@ func Verify(w http.ResponseWriter, r *http.Request) {
 
 func Register(w http.ResponseWriter, r *http.Request) {
 	var authUser models.AuthUser
-	json.NewDecoder(r.Body).Decode(&authUser)
-
+	if err := json.NewDecoder(r.Body).Decode(&authUser); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+	//check whether the user is already registered
+	var existingUser models.AuthUser
+	result := db.Where("username = ?", authUser.Username).First(&existingUser)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			fmt.Println("The user does not exist")
+		} else {
+			// another error is occured
+			http.Error(w, "Error checking user registration", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		http.Error(w, "User already exists", http.StatusConflict)
+		return
+	}
+	//if the user is not registered, register it
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(authUser.Password), bcrypt.DefaultCost)
 	if err != nil {
 		http.Error(w, "Server error", http.StatusInternalServerError)
@@ -73,12 +162,13 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		AuthUserID: foundedUser.ID,
 		Username:   foundedUser.Username,
 	}
-
+	//for web services db
 	if err := db.Create(&user).Error; err != nil {
 		http.Error(w, "Could not create user", http.StatusBadRequest)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte("User is registered."))
 }
 
 func Login(w http.ResponseWriter, r *http.Request) {

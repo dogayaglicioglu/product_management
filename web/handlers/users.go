@@ -6,9 +6,30 @@ import (
 	"net/http"
 	"product_management/database"
 	models "product_management/models"
+
+	"github.com/gorilla/mux"
 )
 
-func CreateUser(w http.ResponseWriter, r *http.Request) {
+func GetUser(w http.ResponseWriter, r *http.Request) {
+	var user models.User
+	vars := mux.Vars(r)
+	id := vars["id"]
+	if id == "" {
+		http.Error(w, "Id is required to find user", http.StatusBadRequest)
+		return
+	}
+	if err := database.DB.DB.First(&user, "username = ?", id); err != nil {
+
+	}
+	jsonResp, err := json.Marshal(user)
+	if err != nil {
+		fmt.Print("Error in marshal operation %v", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(jsonResp)
 
 }
 func GetUsers(w http.ResponseWriter, r *http.Request) {

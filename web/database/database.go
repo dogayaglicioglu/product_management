@@ -19,7 +19,7 @@ var DB DbInstance
 
 func ConnectDb() DbInstance {
 	dsn := fmt.Sprintf(
-		"host=dbweb user=%s password=%s dbname=%s port=5433 sslmode=disable TimeZone=Asia/Shanghai",
+		"host=dbweb user=%s password=%s dbname=%s port=5432 sslmode=disable TimeZone=Asia/Shanghai",
 		os.Getenv("POSTGRES_USER"),
 		os.Getenv("POSTGRES_PASSWORD"),
 		os.Getenv("POSTGRES_DB"),

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"auth-service/database"
+	"auth-service/kafka"
 	"auth-service/models"
 	"encoding/json"
 	"errors"
@@ -158,15 +159,8 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := models.User{
-		AuthUserID: foundedUser.ID,
-		Username:   foundedUser.Username,
-	}
-	//for web services db
-	if err := db.Create(&user).Error; err != nil {
-		http.Error(w, "Could not create user", http.StatusBadRequest)
-		return
-	}
+	//sync web db in here
+	kafka.ProduceEvent(authUser.Username)
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("User is registered."))
 }

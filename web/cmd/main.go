@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"product_management/database"
 	"product_management/kafka"
@@ -11,7 +12,9 @@ import (
 
 func main() {
 	database.ConnectDb()
+	fmt.Print("DB IS CREATED...")
 	go func() {
+		fmt.Print("INIT CONSUMER")
 		kafka.InitConsumer()
 	}()
 	router := mux.NewRouter()

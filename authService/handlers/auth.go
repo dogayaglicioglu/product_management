@@ -40,7 +40,6 @@ func Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var foundedUser models.AuthUser
-	// Find the user by username
 	result := db.Where("username = ?", username).First(&foundedUser)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -152,15 +151,11 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Could not create user", http.StatusBadRequest)
 		return
 	}
-	var foundedUser models.AuthUser
-	if err := db.Where("username = ?", authUser.Username).First(&foundedUser).Error; err != nil {
-		fmt.Print("Error in here %v", err)
-		http.Error(w, "User not found after creation", http.StatusNotFound)
-		return
-	}
+	fmt.Print("THE USER IS CREATED...")
 
 	//sync web db in here
 	kafka.ProduceEvent(authUser.Username)
+	fmt.Print("THE MESSAGE SUCCES. SENT..")
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("User is registered."))
 }

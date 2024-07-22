@@ -2,7 +2,6 @@ package kafka
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"product_management/database"
@@ -14,10 +13,11 @@ import (
 func InitConsumer() {
 	config := SaramaConfig()
 	brokers := []string{"kafka:9092"}
-	consumerGroup, err := sarama.NewConsumerGroup(brokers, "web-service-group", config)
+	consumerGroup, err := sarama.NewConsumerGroup(brokers, "web-service-group-new", config)
 	if err != nil {
 		log.Fatalf("Failed to start Sarama consumer group: %v", err)
 	}
+	fmt.Print("CONSUMER CREATED...")
 	defer consumerGroup.Close()
 
 	handler := &ConsumerGroupHandler{}
@@ -26,7 +26,6 @@ func InitConsumer() {
 			log.Fatalf("Failed to consume messages: %v", err)
 		}
 	}
-
 }
 
 type ConsumerGroupHandler struct{}
@@ -35,15 +34,14 @@ func (h *ConsumerGroupHandler) Setup(sarama.ConsumerGroupSession) error   { retu
 func (h *ConsumerGroupHandler) Cleanup(sarama.ConsumerGroupSession) error { return nil }
 func (h *ConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for msg := range claim.Messages() {
-		var username string
-		err := json.Unmarshal(msg.Value, &username)
-		if err != nil {
-			fmt.Printf("failed to unmarshal username: %v\n", err)
-			continue
-		}
+		username := string(msg.Value)
+		fmt.Printf("USERNAME: %s\n", username)
+
 		authUser := models.User{Username: username}
+		fmt.Printf("AUTH USER: %v\n", authUser)
+
 		if err := database.DB.DB.Create(&authUser).Error; err != nil {
-			fmt.Printf("failed to save user to web database: %v\n", err)
+			fmt.Printf("Failed to save user to web database: %v\n", err)
 		}
 		sess.MarkMessage(msg, "")
 	}

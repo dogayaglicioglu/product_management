@@ -14,7 +14,7 @@ func ProduceEvent(username string) {
 		Topic: "register-user",
 		Value: sarama.StringEncoder(username),
 	}
-
+	fmt.Print("pRODUCER CREATED AND WAITING TO SEND MESSAGE...")
 	_, _, err := producer.SendMessage(msg)
 	if err != nil {
 		fmt.Printf("failed to send message: %v\n", err)

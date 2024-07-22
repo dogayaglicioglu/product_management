@@ -22,7 +22,7 @@ services:
       - "5433:5432"
     volumes:
       - postgres-db-web:/var/lib/postgresql/data
-  
+
   dbauth:
     image: postgres:alpine
     env_file:
@@ -32,13 +32,13 @@ services:
     volumes:
       - postgres-db-auth:/var/lib/postgresql/data
     depends_on:
-      - dbweb  # Ensure dbweb is started first
+      - dbweb  
 
   auth:
     build:
       context: ./authService
     depends_on:
-      - dbauth  # Ensure dbauth is started first
+      - dbauth  
     env_file:
       - ./authService/.env
     ports:

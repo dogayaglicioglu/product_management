@@ -4,6 +4,7 @@ import (
 	"auth-service/database"
 	"auth-service/kafka"
 	"auth-service/models"
+	"auth-service/verify"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -105,19 +106,81 @@ func Verify(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Token required", http.StatusBadRequest)
 		return
 	}
-	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
-		return jwtKey, nil
-	})
-	if err != nil || !token.Valid {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
+
+	verified := verify.VerifyToken(tokenStr)
+	if verified != false {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Token verified"))
+	} else {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte("Token verification failed."))
 	}
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Token verified"))
 
 }
 
+func ChangePassword(w http.ResponseWriter, r *http.Request) {
+	var updatedUser models.AuthUser
+	if err := json.NewDecoder(r.Body).Decode(&updatedUser); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+	var checkUser models.AuthUser
+	result := db.Where("username = ?", updatedUser.Username).First(&checkUser)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			fmt.Println("The user does not exist, you cant change password..")
+			return
+		} else {
+			// another error is occured
+			http.Error(w, "Error checking user registration", http.StatusInternalServerError)
+			return
+		}
+	}
+	checkUser.Password = updatedUser.Password
+	if err := db.Save(&checkUser).Error; err != nil {
+		http.Error(w, "Error while updating password", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintln(w, "Password updated successfully.")
+
+}
+
+func ChangeUsername(w http.ResponseWriter, r *http.Request) {
+	var updatedUser models.AuthUser
+	if err := json.NewDecoder(r.Body).Decode(&updatedUser); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	//check the user is exist ?
+	var checkUser models.AuthUser
+	result := db.Where("username = ?", updatedUser.Username).First(&checkUser)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			fmt.Println("The user does not exist, you cant change username..")
+			return
+		} else {
+			// another error is occured
+			http.Error(w, "Error checking user registration", http.StatusInternalServerError)
+			return
+		}
+	}
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(updatedUser.Password), bcrypt.DefaultCost)
+	if err != nil {
+		http.Error(w, "Error in generating hashedPassword", http.StatusInternalServerError)
+		return
+	}
+	checkUser.Password = string(hashedPassword)
+	if err := db.Save(&checkUser).Error; err != nil {
+		http.Error(w, "Error while updating password", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintln(w, "Password updated successfully.")
+}
 func Register(w http.ResponseWriter, r *http.Request) {
 	var authUser models.AuthUser
 	if err := json.NewDecoder(r.Body).Decode(&authUser); err != nil {
@@ -195,6 +258,6 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		Expires: expirationTime,
 	})
 
-	w.Write([]byte(tokenString))
+	w.Write([]byte("Successfully logged in."))
 
 }

@@ -86,8 +86,52 @@ services:
     depends_on:
       - zookeeper  
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.13.3
+    environment:
+      - discovery.type=single-node
+    ports:
+      - "9200:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+
+  fluentd:
+    build: ./fluentd
+    volumes:
+      - ./fluentd:/fluentd/etc  
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+      - "8888:8888"  
+    depends_on:
+      - elasticsearch
+      - kibana
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.13.3
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
 volumes:
   zookeeper-volume:
   postgres-db-web:
   postgres-db-auth:
   kafka-volume:
+  esdata:
+  grafana-storage:

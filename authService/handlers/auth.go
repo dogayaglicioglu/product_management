@@ -3,6 +3,7 @@ package handler
 import (
 	"auth-service/database"
 	"auth-service/kafka"
+	"auth-service/logger"
 	"auth-service/models"
 	"auth-service/verify"
 	"encoding/json"
@@ -26,7 +27,7 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-func Init(database database.DbInstance) {
+func InitDb(database database.DbInstance) {
 	db = database.DB
 	db.AutoMigrate(&models.AuthUser{})
 
@@ -181,10 +182,20 @@ func ChangeUsername(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintln(w, "Password updated successfully.")
 }
+
 func Register(w http.ResponseWriter, r *http.Request) {
+	fLogger := LoggerFromContext(r.Context())
+	if fLogger == nil {
+		http.Error(w, "Logger not found", http.StatusInternalServerError)
+		return
+
+	}
+	traceId := TraceIdFromContext(r.Context())
+
 	var authUser models.AuthUser
 	if err := json.NewDecoder(r.Body).Decode(&authUser); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		logger.LogError(fLogger, "Invalid request payload", traceId, err)
 		return
 	}
 	//check whether the user is already registered
@@ -196,6 +207,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		} else {
 			// another error is occured
 			http.Error(w, "Error checking user registration", http.StatusInternalServerError)
+			logger.LogError(fLogger, "Error checking user registration", traceId, result.Error)
 			return
 		}
 	} else {
@@ -206,19 +218,22 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(authUser.Password), bcrypt.DefaultCost)
 	if err != nil {
 		http.Error(w, "Server error", http.StatusInternalServerError)
+		logger.LogError(fLogger, "Error in generating hashed password.", traceId, err)
 		return
 	}
 
 	authUser.Password = string(hashedPassword)
 	if err := db.Create(&authUser).Error; err != nil {
 		http.Error(w, "Could not create user", http.StatusBadRequest)
+		logger.LogError(fLogger, "Could not create user", traceId, err)
 		return
 	}
-	fmt.Print("THE USER IS CREATED...")
+
+	logger.LogInfo(fLogger, "The user is registered.", traceId)
 
 	//sync web db in here
 	kafka.ProduceEvent(authUser.Username)
-	fmt.Print("THE MESSAGE SUCCES. SENT..")
+	logger.LogInfo(fLogger, "The msg succ. sent to kafka...", traceId)
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("User is registered."))
 }

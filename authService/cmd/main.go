@@ -2,6 +2,7 @@ package main
 
 import (
 	handler "auth-service/handlers"
+	"auth-service/logger"
 	"auth-service/middleware"
 	"auth-service/routes"
 	"net/http"
@@ -12,14 +13,12 @@ import (
 )
 
 func main() {
-	//loggerInstance := logger.Logger()
 	dbInst := database.ConnectDb()
 
-	//fLogger := loggerInstance.Logger
 	handler.InitDb(dbInst)
-
+	logger.InitLog()
 	router := mux.NewRouter()
-	router.Use(middleware.LoggerMiddleware) //add middleware to the router
+	router.Use(middleware.AccessLogger)
 
 	routes.SetUpRoutes(router)
 	http.ListenAndServe(":8082", router)

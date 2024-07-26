@@ -6,6 +6,7 @@ import (
 	"log"
 	"product_management/database"
 	"product_management/models"
+	"time"
 
 	"github.com/IBM/sarama"
 )
@@ -13,6 +14,8 @@ import (
 func InitConsumer() {
 	config := SaramaConfig()
 	brokers := []string{"kafka:9092"}
+	timeout := 1 * time.Minute
+	waitForKafka(brokers, timeout, config)
 	consumerGroup, err := sarama.NewConsumerGroup(brokers, "web-service-group-new", config)
 	if err != nil {
 		log.Fatalf("Failed to start Sarama consumer group: %v", err)
@@ -46,4 +49,20 @@ func (h *ConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, cl
 		sess.MarkMessage(msg, "")
 	}
 	return nil
+}
+
+func waitForKafka(brokers []string, timeout time.Duration, config *sarama.Config) error {
+	startTime := time.Now()
+
+	for time.Since(startTime) < timeout {
+		client, err := sarama.NewClient(brokers, config)
+		if err == nil {
+			fmt.Print("Kafka connection success..")
+			client.Close()
+			return nil
+		}
+		fmt.Printf("Kafka connection failed, trying again.. %v\n", err)
+		time.Sleep(5 * time.Second)
+	}
+	return fmt.Errorf("Kafka connection failed")
 }

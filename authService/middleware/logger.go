@@ -3,19 +3,20 @@ package middleware
 import (
 	handler "auth-service/handlers"
 	"auth-service/logger"
+	"context"
 	"net/http"
 
-	"golang.org/x/net/context"
+	"github.com/google/uuid"
 )
 
-func LoggerMiddleware(next http.Handler) http.Handler {
+func AccessLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logInstance := logger.Logger()
-		if logInstance == nil {
-			http.Error(w, "Logger instance is nil", http.StatusInternalServerError)
-			return
-		}
-		ctx := context.WithValue(r.Context(), handler.LoggerKey, logInstance.Logger)
+
+		logger := logger.InitLog()
+		traceID := uuid.New().String()
+		ctx := context.WithValue(r.Context(), handler.TraceIDKey, traceID)
+
+		ctx = context.WithValue(r.Context(), handler.LoggerKey, logger) // to add logger to the context
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 

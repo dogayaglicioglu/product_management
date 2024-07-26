@@ -2,31 +2,29 @@ package handler
 
 import (
 	"context"
-	"log"
 
-	"github.com/fluent/fluent-logger-golang/fluent"
+	"go.uber.org/zap"
 )
 
 type key int
 
 const (
 	LoggerKey  key = iota
-	traceIDKey key = iota
+	TraceIDKey key = iota
 )
 
-func LoggerFromContext(ctx context.Context) *fluent.Fluent {
-	logger, ok := ctx.Value(LoggerKey).(*fluent.Fluent)
+func LoggerFromContext(ctx context.Context) *zap.SugaredLogger {
+	log, ok := ctx.Value(LoggerKey).(*zap.SugaredLogger)
 	if !ok {
-		log.Fatal("The logger is not found in the context")
-		return nil
+		return zap.NewNop().Sugar()
 	}
-	return logger
+	return log
 }
 
-func TraceIdFromContext(ctx context.Context) string {
-	traceId, ok := ctx.Value(traceIDKey).(string)
+func TraceIDFromContext(ctx context.Context) string {
+	traceID, ok := ctx.Value(TraceIDKey).(string)
 	if !ok {
-		return ""
+		return "unknown traceID"
 	}
-	return traceId
+	return traceID
 }

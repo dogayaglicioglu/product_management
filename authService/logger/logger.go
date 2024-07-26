@@ -1,55 +1,65 @@
 package logger
 
 import (
-	"fmt"
-	"log"
-	"sync"
+	"context"
+	"io"
+	"os"
 
-	"github.com/fluent/fluent-logger-golang/fluent"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
-type LoggerInstance struct {
-	Logger *fluent.Fluent
+const (
+	serviceName     = "[GO APP]"
+	logFieldService = "Authentication_Service"
+	logFile         = "logger/app.log"
+)
+
+type LogInstance struct {
+	ZapLogger *zap.SugaredLogger
+	TraceId   string
 }
 
 var (
-	once   sync.Once
-	LOGGER *LoggerInstance
+	LoggerInst LogInstance
 )
 
-func Logger() *LoggerInstance {
-	once.Do(func() {
-		logger, err := fluent.New(fluent.Config{
-			FluentPort: 24224,
-			FluentHost: "fluentd",
-		})
-		if err != nil {
-			log.Fatalf("Failed to connect to Fluentd: %v", err)
-		}
-
-		LOGGER = &LoggerInstance{
-			Logger: logger,
-		}
-	})
-	return LOGGER
-}
-func LogInfo(logger *fluent.Fluent, msg string, traceId string) {
-	err := logger.Post("auth-service.info", map[string]string{
-		"message": msg,
-		"traceId": traceId,
-	})
+func InitLog() *zap.SugaredLogger {
+	encoderCfg := zap.NewProductionEncoderConfig()
+	encoderCfg.TimeKey = "ts"
+	encoderCfg.EncodeTime = zapcore.ISO8601TimeEncoder
+	file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
-		fmt.Printf("Failed to log info: %v\n", err)
+		panic(err)
 	}
+	w := io.MultiWriter(file, os.Stdout)
+	core := zapcore.NewCore(
+		zapcore.NewJSONEncoder(encoderCfg),
+		zapcore.AddSync(w),
+		zap.DebugLevel,
+	)
+	fields := zap.Fields(zap.String(logFieldService, serviceName))
+	options := []zap.Option{fields, zap.AddCaller(), zap.AddStacktrace(zap.ErrorLevel)}
+	LoggerInst.ZapLogger = zap.New(core, options...).Sugar()
+
+	return LoggerInst.ZapLogger
 }
 
-func LogError(logger *fluent.Fluent, msg string, traceId string, err error) {
-	logErr := logger.Post("auth-service.error", map[string]string{
-		"message": msg,
-		"traceID": traceId,
-		"error":   err.Error(),
-	})
-	if logErr != nil {
-		fmt.Printf("Failed to log error: %v\n", logErr)
+func (l *LogInstance) LogWithTraceId(ctx context.Context) *zap.SugaredLogger {
+	traceId, ok := ctx.Value("traceID").(string)
+	if !ok {
+		traceId = "unknown traceId"
 	}
+	return l.ZapLogger.With("traceID", traceId)
+
+}
+
+func (l *LogInstance) Info(ctx context.Context, msg string, args ...interface{}) {
+	log := l.LogWithTraceId(ctx)
+	log.Infof(msg, args...)
+}
+
+func (l *LogInstance) Error(ctx context.Context, msg string, args ...interface{}) {
+	log := l.LogWithTraceId(ctx)
+	log.Errorf(msg, args...)
 }

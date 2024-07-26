@@ -4,6 +4,7 @@ services:
     build:
       context: ./web
     depends_on:
+      - kafka
       - dbweb
       - auth
     env_file:
@@ -32,13 +33,13 @@ services:
     volumes:
       - postgres-db-auth:/var/lib/postgresql/data
     depends_on:
-      - dbweb  
+      - dbweb
 
   auth:
     build:
       context: ./authService
     depends_on:
-      - dbauth  
+      - dbauth
     env_file:
       - ./authService/.env
     ports:
@@ -55,7 +56,7 @@ services:
       - "80:80"
     depends_on:
       - web
-  
+
   zookeeper:
     restart: always
     container_name: kafka-like-zookeeper
@@ -84,31 +85,39 @@ services:
       - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka:9092,EXTERNAL://localhost:9093
       - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=CLIENT
     depends_on:
-      - zookeeper  
+      - zookeeper
+
+  fluent-bit:
+    image: fluent/fluent-bit:2.2
+    container_name: fluent-bit
+    volumes:
+      - ./fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+      - ./fluent-bit/parsers.conf:/fluent-bit/etc/parsers.conf
+      - log_data:/log
+    depends_on:
+      - auth
+    ports:
+      - "2020:2020"
+      - "2021:2021"
+    command: ["fluent-bit", "-c", "/fluent-bit/etc/fluent-bit.conf"]
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.13.3
+    image: elasticsearch:7.17.13
+    container_name: elasticsearch-1
     environment:
       - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
     ports:
       - "9200:9200"
-    volumes:
-      - esdata:/usr/share/elasticsearch/data
-
-  fluentd:
-    build: ./fluentd
-    volumes:
-      - ./fluentd:/fluentd/etc  
-    ports:
-      - "24224:24224"
-      - "24224:24224/udp"
-      - "8888:8888"  
-    depends_on:
-      - elasticsearch
-      - kibana
+      - "9300:9300"
 
   kibana:
-    image: docker.elastic.co/kibana/kibana:7.13.3
+    image: kibana:7.17.13
+    container_name: kibana-1
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
     ports:
       - "5601:5601"
     depends_on:
@@ -133,5 +142,8 @@ volumes:
   postgres-db-web:
   postgres-db-auth:
   kafka-volume:
-  esdata:
+  es_data:
+    driver: local
+  log_data:
+    driver: local
   grafana-storage:

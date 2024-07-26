@@ -51,7 +51,7 @@ func (h *ConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, cl
 	return nil
 }
 
-func waitForKafka(brokers []string, timeout time.Duration, config *sarama.Config) error {
+func waitForKafka(brokers []string, timeout time.Duration, config *sarama.Config) error { //BCS Kafka consumer group has not started
 	startTime := time.Now()
 
 	for time.Since(startTime) < timeout {

@@ -2,6 +2,7 @@ package logger
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 
@@ -24,7 +25,20 @@ var (
 	LoggerInst LogInstance
 )
 
-func InitLog() *zap.SugaredLogger {
+type key int
+
+const (
+	LoggerKey  key = iota
+	TraceIDKey key = iota
+)
+
+func LoggerInstWithTraceId(traceId string) *LogInstance {
+	return &LogInstance{
+		ZapLogger: LoggerInst.ZapLogger, // Use default logger
+		TraceId:   traceId,
+	}
+}
+func InitLog() {
 	encoderCfg := zap.NewProductionEncoderConfig()
 	encoderCfg.TimeKey = "ts"
 	encoderCfg.EncodeTime = zapcore.ISO8601TimeEncoder
@@ -42,24 +56,21 @@ func InitLog() *zap.SugaredLogger {
 	options := []zap.Option{fields, zap.AddCaller(), zap.AddStacktrace(zap.ErrorLevel)}
 	LoggerInst.ZapLogger = zap.New(core, options...).Sugar()
 
-	return LoggerInst.ZapLogger
-}
-
-func (l *LogInstance) LogWithTraceId(ctx context.Context) *zap.SugaredLogger {
-	traceId, ok := ctx.Value("traceID").(string)
-	if !ok {
-		traceId = "unknown traceId"
-	}
-	return l.ZapLogger.With("traceID", traceId)
-
+	//return LoggerInst.ZapLogger
 }
 
 func (l *LogInstance) Info(ctx context.Context, msg string, args ...interface{}) {
-	log := l.LogWithTraceId(ctx)
-	log.Infof(msg, args...)
+	if l.ZapLogger == nil {
+		fmt.Print("Zap Logger is nil..")
+		return
+	}
+	l.ZapLogger.With("traceID", l.TraceId).Infof(msg, args...)
 }
 
 func (l *LogInstance) Error(ctx context.Context, msg string, args ...interface{}) {
-	log := l.LogWithTraceId(ctx)
-	log.Errorf(msg, args...)
+	if l.ZapLogger == nil {
+		fmt.Print("Zap Logger is nil..")
+		return
+	}
+	l.ZapLogger.With("traceID", l.TraceId).Errorf(msg, args...)
 }

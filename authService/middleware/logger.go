@@ -1,9 +1,9 @@
 package middleware
 
 import (
-	handler "auth-service/handlers"
 	"auth-service/logger"
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -11,12 +11,11 @@ import (
 
 func AccessLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		logger := logger.InitLog()
 		traceID := uuid.New().String()
-		ctx := context.WithValue(r.Context(), handler.TraceIDKey, traceID)
+		fmt.Printf("trace id %s", traceID)
+		l := logger.LoggerInstWithTraceId(traceID)
 
-		ctx = context.WithValue(r.Context(), handler.LoggerKey, logger) // to add logger to the context
+		ctx := context.WithValue(r.Context(), logger.LoggerKey, l)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 

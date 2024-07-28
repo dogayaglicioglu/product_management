@@ -14,9 +14,8 @@ import (
 
 func main() {
 	dbInst := database.ConnectDb()
-
-	handler.InitDb(dbInst)
 	logger.InitLog()
+	handler.InitDb(dbInst)
 	router := mux.NewRouter()
 	router.Use(middleware.AccessLogger)
 

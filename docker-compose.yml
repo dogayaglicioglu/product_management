@@ -46,6 +46,7 @@ services:
       - "8082:8082"
     volumes:
       - ./authService:/usr/src/app
+      - ./authService/logger:/logger
     command: ["air", "-c", ".air.toml"]
 
   gateway:
@@ -93,7 +94,7 @@ services:
     volumes:
       - ./fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
       - ./fluent-bit/parsers.conf:/fluent-bit/etc/parsers.conf
-      - log_data:/log
+      - ./authService/logger:/logger
     depends_on:
       - auth
     ports:
@@ -143,7 +144,5 @@ volumes:
   postgres-db-auth:
   kafka-volume:
   es_data:
-    driver: local
-  log_data:
     driver: local
   grafana-storage:

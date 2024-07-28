@@ -34,7 +34,7 @@ const (
 
 func LoggerInstWithTraceId(traceId string) *LogInstance {
 	return &LogInstance{
-		ZapLogger: LoggerInst.ZapLogger, // Use default logger
+		ZapLogger: LoggerInst.ZapLogger,
 		TraceId:   traceId,
 	}
 }
@@ -56,7 +56,6 @@ func InitLog() {
 	options := []zap.Option{fields, zap.AddCaller(), zap.AddStacktrace(zap.ErrorLevel)}
 	LoggerInst.ZapLogger = zap.New(core, options...).Sugar()
 
-	//return LoggerInst.ZapLogger
 }
 
 func (l *LogInstance) Info(ctx context.Context, msg string, args ...interface{}) {

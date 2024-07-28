@@ -16,4 +16,6 @@ func SetUpRoutes(r *mux.Router) {
 	r.Handle("/auth/changeusername", middleware.Authorization(http.HandlerFunc(handler.ChangeUsername))).Methods("POST")
 	r.HandleFunc("/auth/update/{username}", handler.Update).Methods("PUT")
 	r.HandleFunc("/auth/delete/{username}", handler.Delete).Methods("DELETE")
+	//TO DO:
+	//when changePass changeUsername update and delete user web db must be sync. with kafka
 }

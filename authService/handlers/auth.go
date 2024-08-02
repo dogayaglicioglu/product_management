@@ -27,6 +27,11 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
+type requestPayload struct {
+	NewUsername string `json:"new_username"`
+	OldUsername string `json:"new_username"`
+}
+
 func InitDb(database database.DbInstance) {
 	db = database.DB
 	db.AutoMigrate(&models.AuthUser{})
@@ -60,6 +65,10 @@ func Delete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error in deleting user", http.StatusInternalServerError)
 		return
 	}
+	req := requestPayload{
+		OldUsername: username,
+	}
+	kafka.ProduceEvent(req, "delete-user")
 	loggerInst.Info(r.Context(), "The user succ. deleted.")
 	w.WriteHeader(http.StatusOK)
 
@@ -111,11 +120,19 @@ func Update(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error updating user in the database", http.StatusInternalServerError)
 		return
 	}
+	req := requestPayload{
+		NewUsername: foundedUser.Username,
+		OldUsername: username,
+	}
+	//sync. web db
+	kafka.ProduceEvent(req, "update-user") //only send username field.
 	loggerInst.Info(r.Context(), "The user is updated succ.")
 	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("The updated successsfully."))
+
 }
 func Verify(w http.ResponseWriter, r *http.Request) {
-	loggerInst := r.Context().Value(logger.LoggerKey).(logger.LogInstance)
+	loggerInst := r.Context().Value(logger.LoggerKey).(*logger.LogInstance)
 	tokenStr := r.URL.Query().Get("token")
 	if tokenStr == "" {
 		http.Error(w, "Token required", http.StatusBadRequest)
@@ -158,7 +175,13 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	checkUser.Password = updatedUser.Password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(updatedUser.Password), bcrypt.DefaultCost)
+	if err != nil {
+		http.Error(w, "Server error", http.StatusInternalServerError)
+		loggerInst.Error(r.Context(), "Error in generating hashed password.")
+		return
+	}
+	checkUser.Password = string(hashedPassword)
 	if err := db.Save(&checkUser).Error; err != nil {
 		loggerInst.Error(r.Context(), "Error while updating password.", err)
 		http.Error(w, "Error while updating password", http.StatusInternalServerError)
@@ -166,23 +189,27 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Password updated successsfully."))
 	loggerInst.Info(r.Context(), "Password updated successfully.")
-	fmt.Fprintln(w, "Password updated successfully.")
 
 }
 
 func ChangeUsername(w http.ResponseWriter, r *http.Request) {
 	loggerInst := r.Context().Value(logger.LoggerKey).(*logger.LogInstance)
-	var updatedUser models.AuthUser
-	if err := json.NewDecoder(r.Body).Decode(&updatedUser); err != nil {
-		loggerInst.Error(r.Context(), "Invalid request payload", err)
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+	vars := mux.Vars(r)
+	username := vars["username"] //exists username
+	if username != "" {
+		loggerInst.Error(r.Context(), "The username must be entered.")
+		http.Error(w, "The username must be entered.", http.StatusBadRequest)
 		return
 	}
-
+	var newUsername string
+	if err := json.NewDecoder(r.Body).Decode(&newUsername); err != nil {
+		loggerInst.Error(r.Context(), "Error in decode operation. %v", err)
+	}
 	//check the user is exist ?
-	var checkUser models.AuthUser
-	result := db.Where("username = ?", updatedUser.Username).First(&checkUser)
+	var existsUser models.AuthUser
+	result := db.Where("username = ?", username).First(&existsUser)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			loggerInst.Error(r.Context(), "The user does not exist, you cant change username..", result.Error)
@@ -195,22 +222,23 @@ func ChangeUsername(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(updatedUser.Password), bcrypt.DefaultCost)
-	if err != nil {
-		loggerInst.Error(r.Context(), "Error in generating hashedPassword", err)
-		http.Error(w, "Error in generating hashedPassword", http.StatusInternalServerError)
-		return
-	}
-	checkUser.Password = string(hashedPassword)
-	if err := db.Save(&checkUser).Error; err != nil {
+	existsUser.Username = newUsername
+	if err := db.Save(&existsUser).Error; err != nil {
 		loggerInst.Error(r.Context(), "Error while updating password.", err)
 		http.Error(w, "Error while updating password.", http.StatusInternalServerError)
 		return
 	}
+	webUser := requestPayload{
+		OldUsername: username,
+		NewUsername: existsUser.Username,
+	}
+
+	//sync web db in here
+	kafka.ProduceEvent(webUser, "change-username")
+	loggerInst.Info(r.Context(), "The msg succ. sent to kafka...")
 
 	w.WriteHeader(http.StatusOK)
-	loggerInst.Info(r.Context(), "Password updated successfully.")
-	fmt.Fprintln(w, "Password updated successfully.")
+	loggerInst.Info(r.Context(), "Username updated successfully.")
 }
 
 func Register(w http.ResponseWriter, r *http.Request) {
@@ -255,7 +283,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	loggerInst.Info(r.Context(), "The user is registered.")
 
 	//sync web db in here
-	kafka.ProduceEvent(authUser.Username)
+	kafka.ProduceEvent(authUser.Username, "register-user")
 	loggerInst.Info(r.Context(), "The msg succ. sent to kafka...")
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("User is registered."))

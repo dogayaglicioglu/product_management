@@ -52,7 +52,7 @@ func (kc *KafkaConsumer) Start() error {
 func InitConsumer() {
 	config := SaramaConfig()
 	brokers := []string{"kafka:9092"}
-	topics := []string{"register-user", "update-password"}
+	topics := []string{"register-user", "change-username"}
 	kafkaConsumer, err := NewKafkaConsumer(brokers, "web-service-group-new", topics, config)
 	if err != nil {
 		log.Fatalf("Failed to create Kafka consumer: %v", err)
@@ -117,8 +117,8 @@ func handlerUpdateUser(msg *sarama.ConsumerMessage) {
 	if err := json.Unmarshal(msg.Value, &msgPayload); err != nil {
 		fmt.Println("Error in unsmarshal operation. %v", err)
 	}
-	oldUsername, ok1 := msgPayload["oldUsername"].(string)
-	newUsername, ok2 := msgPayload["newUsername"].(string)
+	oldUsername, ok1 := msgPayload["old_username"].(string)
+	newUsername, ok2 := msgPayload["new_username"].(string)
 
 	if !ok1 || !ok2 {
 		fmt.Println("Invalid data format: 'oldUsername' or 'newUsername' is missing or not a string")

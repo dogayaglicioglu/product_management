@@ -27,11 +27,6 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-type requestPayload struct {
-	NewUsername string `json:"new_username"`
-	OldUsername string `json:"new_username"`
-}
-
 func InitDb(database database.DbInstance) {
 	db = database.DB
 	db.AutoMigrate(&models.AuthUser{})
@@ -65,7 +60,7 @@ func Delete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error in deleting user", http.StatusInternalServerError)
 		return
 	}
-	req := requestPayload{
+	req := models.RequestPayload{
 		OldUsername: username,
 	}
 	kafka.ProduceEvent(req, "delete-user")
@@ -120,7 +115,7 @@ func Update(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error updating user in the database", http.StatusInternalServerError)
 		return
 	}
-	req := requestPayload{
+	req := models.RequestPayload{
 		NewUsername: foundedUser.Username,
 		OldUsername: username,
 	}
@@ -197,18 +192,21 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 func ChangeUsername(w http.ResponseWriter, r *http.Request) {
 	loggerInst := r.Context().Value(logger.LoggerKey).(*logger.LogInstance)
 	vars := mux.Vars(r)
-	username := vars["username"] //exists username
-	if username != "" {
+	username := vars["username"] 
+	if username == "" {
 		loggerInst.Error(r.Context(), "The username must be entered.")
 		http.Error(w, "The username must be entered.", http.StatusBadRequest)
 		return
 	}
-	var newUsername string
-	if err := json.NewDecoder(r.Body).Decode(&newUsername); err != nil {
+	var newUsernamePayload struct {
+		Username string `json:"username"`
+	} 
+	if err := json.NewDecoder(r.Body).Decode(&newUsernamePayload); err != nil {
 		loggerInst.Error(r.Context(), "Error in decode operation. %v", err)
 	}
+	newUsername := newUsernamePayload.Username
 	//check the user is exist ?
-	var existsUser models.AuthUser
+	var existsUser models.AuthUser 
 	result := db.Where("username = ?", username).First(&existsUser)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
@@ -222,22 +220,37 @@ func ChangeUsername(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	existsUser.Username = newUsername
-	if err := db.Save(&existsUser).Error; err != nil {
-		loggerInst.Error(r.Context(), "Error while updating password.", err)
-		http.Error(w, "Error while updating password.", http.StatusInternalServerError)
+	var duplicateUser models.AuthUser
+	result = db.Where("username = ?", newUsername).First(&duplicateUser)
+	if result.Error == nil {
+		loggerInst.Error(r.Context(), "The new username is already taken.")
+		http.Error(w, "The new username is already taken.", http.StatusConflict)
+		return
+	} else if result.Error != gorm.ErrRecordNotFound {
+		loggerInst.Error(r.Context(), "Error checking new username.", result.Error)
+		http.Error(w, "Error checking new username.", http.StatusInternalServerError)
 		return
 	}
-	webUser := requestPayload{
+
+	// Update the username
+	existsUser.Username = newUsername
+	if err := db.Save(&existsUser).Error; err != nil {
+		loggerInst.Error(r.Context(), "Error while updating username.", err)
+		http.Error(w, "Error while updating username.", http.StatusInternalServerError)
+		return
+	}
+
+	webUser := models.RequestPayload{
 		OldUsername: username,
 		NewUsername: existsUser.Username,
 	}
 
-	//sync web db in here
+	// Sync web db in here
 	kafka.ProduceEvent(webUser, "change-username")
-	loggerInst.Info(r.Context(), "The msg succ. sent to kafka...")
+	loggerInst.Info(r.Context(), "The message was successfully sent to Kafka.")
 
 	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("The username updated successfully."))
 	loggerInst.Info(r.Context(), "Username updated successfully.")
 }
 

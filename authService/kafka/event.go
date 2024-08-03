@@ -1,12 +1,18 @@
 package kafka
 
 import (
+	"auth-service/models"
 	"encoding/json"
 	"fmt"
 	"log"
 
 	"github.com/IBM/sarama"
 )
+
+type requestPayload struct {
+	NewUsername string `json:"new_username"`
+	OldUsername string `json:"new_username"`
+}
 
 func ProduceEvent(data interface{}, topic string) {
 	var msg *sarama.ProducerMessage
@@ -15,19 +21,23 @@ func ProduceEvent(data interface{}, topic string) {
 
 	if topic == "register-user" {
 		msg = &sarama.ProducerMessage{
-			Topic: "register-user",
+			Topic: topic,
 			Value: sarama.StringEncoder(data.(string)),
 		}
 
 	}
 	if topic == "change-username" {
-		jsonData, err := json.Marshal(data) //struct yollandı
+		log.Printf("Data: %+v", data) 
+		jsonData, err := json.Marshal(data.(models.RequestPayload))
 		if err != nil {
-			log.Print("Error in marshal operation %v", err)
+			log.Printf("Error in marshal operation: %v", err)
+			return
 		}
 
+		log.Printf("JSON Data: %s", string(jsonData)) 
+
 		msg = &sarama.ProducerMessage{
-			Topic: "change-username",
+			Topic: topic,
 			Value: sarama.ByteEncoder(jsonData),
 		}
 	}

@@ -21,6 +21,8 @@ func Authorization(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		} else {
 			fmt.Println("Unauthorized")
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte("Unauthorized"))
 		}
 	})
 

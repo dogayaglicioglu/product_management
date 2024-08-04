@@ -24,8 +24,8 @@ type KafkaConsumer struct {
 	consumerHandler ConsumerGroupHandler
 }
 
-func NewKafkaConsumer(brokers []string, groupID string, topics []string, config *sarama.Config) (*KafkaConsumer, error) {
-	if err := waitForKafka(brokers, 1*time.Minute, config); err != nil {
+func NewKafkaConsumer(brokers []string, groupID string, topics []string, config *sarama.Config, kafkaCreated chan bool) (*KafkaConsumer, error) {
+	if err := waitForKafka(brokers, 1*time.Minute, config, kafkaCreated); err != nil {
 		return nil, fmt.Errorf("Failed to connect to kafka: %w", err)
 	}
 	consumerGroup, err := sarama.NewConsumerGroup(brokers, consumerGroupName, config)
@@ -49,11 +49,11 @@ func (kc *KafkaConsumer) Start() error {
 		}
 	}
 }
-func InitConsumer() {
+func InitConsumer(kafkaCreated chan bool) {
 	config := SaramaConfig()
 	brokers := []string{"kafka:9092"}
 	topics := []string{"register-user", "change-username"}
-	kafkaConsumer, err := NewKafkaConsumer(brokers, "web-service-group-new", topics, config)
+	kafkaConsumer, err := NewKafkaConsumer(brokers, "web-service-group-new", topics, config, kafkaCreated)
 	if err != nil {
 		log.Fatalf("Failed to create Kafka consumer: %v", err)
 	}
@@ -83,13 +83,14 @@ func (h *ConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, cl
 	return nil
 }
 
-func waitForKafka(brokers []string, timeout time.Duration, config *sarama.Config) error { //BCS Kafka consumer group has not started
+func waitForKafka(brokers []string, timeout time.Duration, config *sarama.Config, kafkaCreated chan bool) error { //BCS Kafka consumer group has not started
 	startTime := time.Now()
 
 	for time.Since(startTime) < timeout {
 		client, err := sarama.NewClient(brokers, config)
 		if err == nil {
 			fmt.Print("Kafka connection success..")
+			kafkaCreated <- true
 			client.Close()
 			return nil
 		}

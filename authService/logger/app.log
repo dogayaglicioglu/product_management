@@ -223,3 +223,34 @@
 {"level":"info","ts":"2024-08-03T13:19:22.390Z","caller":"logger/logger.go:66","msg":"The message was successfully sent to Kafka.","Authentication_Service":"[GO APP]","traceID":"52ec21e7-94c4-46de-b7cb-f46dc96a690c"}
 {"level":"info","ts":"2024-08-03T13:19:22.391Z","caller":"logger/logger.go:66","msg":"Username updated successfully.","Authentication_Service":"[GO APP]","traceID":"52ec21e7-94c4-46de-b7cb-f46dc96a690c"}
 {"level":"info","ts":"2024-08-03T13:19:31.228Z","caller":"logger/logger.go:66","msg":"Token verified.","Authentication_Service":"[GO APP]","traceID":"5715a016-c9a3-4767-9e28-1065121869f9"}
+{"level":"info","ts":"2024-08-04T15:40:36.399Z","caller":"logger/logger.go:66","msg":"The user is registered.","Authentication_Service":"[GO APP]","traceID":"4d11441a-a1b7-42ab-b841-0efa522c7983"}
+{"level":"info","ts":"2024-08-04T15:40:36.437Z","caller":"logger/logger.go:66","msg":"The msg succ. sent to kafka...","Authentication_Service":"[GO APP]","traceID":"4d11441a-a1b7-42ab-b841-0efa522c7983"}
+{"level":"info","ts":"2024-08-04T15:41:45.077Z","caller":"logger/logger.go:66","msg":"Successfully logged in.","Authentication_Service":"[GO APP]","traceID":"9a2244c0-b9f1-4499-bed7-706a09fd6b9a"}
+{"level":"info","ts":"2024-08-04T15:41:52.951Z","caller":"logger/logger.go:66","msg":"Token verified.","Authentication_Service":"[GO APP]","traceID":"74ba22b0-df73-47ab-9f0f-1d2d9376bb01"}
+{"level":"info","ts":"2024-08-04T15:54:59.004Z","caller":"logger/logger.go:66","msg":"The user is registered.","Authentication_Service":"[GO APP]","traceID":"8624459a-835d-4a75-b2fc-c57fc0826d46"}
+{"level":"info","ts":"2024-08-04T15:54:59.061Z","caller":"logger/logger.go:66","msg":"The msg succ. sent to kafka...","Authentication_Service":"[GO APP]","traceID":"8624459a-835d-4a75-b2fc-c57fc0826d46"}
+{"level":"info","ts":"2024-08-04T15:55:08.147Z","caller":"logger/logger.go:66","msg":"Successfully logged in.","Authentication_Service":"[GO APP]","traceID":"10006852-c077-496c-83c8-e3e923bd0c39"}
+{"level":"info","ts":"2024-08-04T15:55:25.648Z","caller":"logger/logger.go:66","msg":"Token verified.","Authentication_Service":"[GO APP]","traceID":"4fb4867f-b691-4971-8e17-c2245eb75605"}
+{"level":"info","ts":"2024-08-04T15:59:39.524Z","caller":"logger/logger.go:66","msg":"The user is registered.","Authentication_Service":"[GO APP]","traceID":"12b002ca-1fa5-487f-8286-837374a4e2d7"}
+{"level":"info","ts":"2024-08-04T15:59:39.584Z","caller":"logger/logger.go:66","msg":"The msg succ. sent to kafka...","Authentication_Service":"[GO APP]","traceID":"12b002ca-1fa5-487f-8286-837374a4e2d7"}
+{"level":"info","ts":"2024-08-04T15:59:48.229Z","caller":"logger/logger.go:66","msg":"Successfully logged in.","Authentication_Service":"[GO APP]","traceID":"7e534aae-9a8c-4c9d-ac86-7af48175558e"}
+{"level":"info","ts":"2024-08-04T16:00:10.124Z","caller":"logger/logger.go:66","msg":"Token verified.","Authentication_Service":"[GO APP]","traceID":"cde77905-dd72-4787-a53e-e0d44cf3871c"}
+{"level":"info","ts":"2024-08-04T16:02:30.535Z","caller":"logger/logger.go:66","msg":"The user is registered.","Authentication_Service":"[GO APP]","traceID":"8457b664-c573-4fab-893f-ead2d404d941"}
+{"level":"info","ts":"2024-08-04T16:02:30.589Z","caller":"logger/logger.go:66","msg":"The msg succ. sent to kafka...","Authentication_Service":"[GO APP]","traceID":"8457b664-c573-4fab-893f-ead2d404d941"}
+{"level":"info","ts":"2024-08-04T16:02:35.723Z","caller":"logger/logger.go:66","msg":"Successfully logged in.","Authentication_Service":"[GO APP]","traceID":"2e49e71a-9bc7-45ea-83ac-4f03a86d2818"}
+{"level":"info","ts":"2024-08-04T16:06:50.995Z","caller":"logger/logger.go:66","msg":"The user is registered.","Authentication_Service":"[GO APP]","traceID":"0c8567bf-c8ce-4f75-a45d-c909a6c55859"}
+{"level":"info","ts":"2024-08-04T16:06:51.060Z","caller":"logger/logger.go:66","msg":"The msg succ. sent to kafka...","Authentication_Service":"[GO APP]","traceID":"0c8567bf-c8ce-4f75-a45d-c909a6c55859"}
+{"level":"info","ts":"2024-08-04T16:06:56.902Z","caller":"logger/logger.go:66","msg":"Successfully logged in.","Authentication_Service":"[GO APP]","traceID":"1544438b-72b0-493a-8e0a-0734de4a881f"}
+{"level":"info","ts":"2024-08-04T16:07:04.209Z","caller":"logger/logger.go:66","msg":"Token verified.","Authentication_Service":"[GO APP]","traceID":"164abba5-0b57-42af-b17f-a0063fa29388"}
+{"level":"info","ts":"2024-08-04T16:10:17.944Z","caller":"logger/logger.go:66","msg":"The user is registered.","Authentication_Service":"[GO APP]","traceID":"86d846b1-377d-4ef8-b547-f535378cae9b"}
+{"level":"info","ts":"2024-08-04T16:10:18.001Z","caller":"logger/logger.go:66","msg":"The msg succ. sent to kafka...","Authentication_Service":"[GO APP]","traceID":"86d846b1-377d-4ef8-b547-f535378cae9b"}
+{"level":"info","ts":"2024-08-04T16:10:23.830Z","caller":"logger/logger.go:66","msg":"Successfully logged in.","Authentication_Service":"[GO APP]","traceID":"3e8deb2c-7e5b-4ad8-a911-ff685ec81656"}
+{"level":"info","ts":"2024-08-04T16:10:32.967Z","caller":"logger/logger.go:66","msg":"Token verified.","Authentication_Service":"[GO APP]","traceID":"b6d9bfdc-9b9f-4413-887e-a21bf201c946"}
+{"level":"info","ts":"2024-08-04T16:10:53.177Z","caller":"logger/logger.go:66","msg":"Token verified.","Authentication_Service":"[GO APP]","traceID":"d4ece37a-8a8d-449e-9520-49076b232b1e"}
+{"level":"info","ts":"2024-08-04T16:21:47.020Z","caller":"logger/logger.go:66","msg":"The user is registered.","Authentication_Service":"[GO APP]","traceID":"f2876c14-47b7-4e58-94ca-860f90d57579"}
+{"level":"info","ts":"2024-08-04T16:21:47.079Z","caller":"logger/logger.go:66","msg":"The msg succ. sent to kafka...","Authentication_Service":"[GO APP]","traceID":"f2876c14-47b7-4e58-94ca-860f90d57579"}
+{"level":"info","ts":"2024-08-04T16:26:59.857Z","caller":"logger/logger.go:66","msg":"The user is registered.","Authentication_Service":"[GO APP]","traceID":"715f2192-f616-4ef6-9788-43be6e0dcde0"}
+{"level":"info","ts":"2024-08-04T16:26:59.922Z","caller":"logger/logger.go:66","msg":"The msg succ. sent to kafka...","Authentication_Service":"[GO APP]","traceID":"715f2192-f616-4ef6-9788-43be6e0dcde0"}
+{"level":"info","ts":"2024-08-04T16:27:06.652Z","caller":"logger/logger.go:66","msg":"Successfully logged in.","Authentication_Service":"[GO APP]","traceID":"f5f673f8-546d-4971-9ef3-cb152514a38a"}
+{"level":"info","ts":"2024-08-04T16:27:18.186Z","caller":"logger/logger.go:66","msg":"Token verified.","Authentication_Service":"[GO APP]","traceID":"3428337e-295a-4c03-9968-b6a348509851"}
+{"level":"info","ts":"2024-08-04T16:27:30.089Z","caller":"logger/logger.go:66","msg":"Token verified.","Authentication_Service":"[GO APP]","traceID":"df8c8bf6-5fe6-437b-8e6e-4c537f3cfef8"}

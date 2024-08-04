@@ -18,19 +18,11 @@ import (
 	"gorm.io/gorm"
 )
 
-var db *gorm.DB
-
 var jwtKey = []byte("my_secret")
 
 type Claims struct {
 	Username string `json:"username"`
 	jwt.RegisteredClaims
-}
-
-func InitDb(database database.DbInstance) {
-	db = database.DB
-	db.AutoMigrate(&models.AuthUser{})
-
 }
 
 func Delete(w http.ResponseWriter, r *http.Request) {
@@ -44,7 +36,7 @@ func Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var foundedUser models.AuthUser
-	result := db.Where("username = ?", username).First(&foundedUser)
+	result := database.DB.DB.Where("username = ?", username).First(&foundedUser)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			loggerInst.Error(r.Context(), "The user is not found, so you can't delete it", result.Error)
@@ -55,7 +47,7 @@ func Delete(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	if err := db.Delete(&foundedUser).Error; err != nil {
+	if err := database.DB.DB.Delete(&foundedUser).Error; err != nil {
 		loggerInst.Error(r.Context(), "Error in deleting user", err)
 		http.Error(w, "Error in deleting user", http.StatusInternalServerError)
 		return
@@ -86,7 +78,7 @@ func Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var foundedUser models.AuthUser
-	if err := db.Where("username = ?", username).First(&foundedUser).Error; err != nil {
+	if err := database.DB.DB.Where("username = ?", username).First(&foundedUser).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			loggerInst.Error(r.Context(), "User not found.", err)
 			http.Error(w, "User not found", http.StatusNotFound)
@@ -110,7 +102,7 @@ func Update(w http.ResponseWriter, r *http.Request) {
 
 	}
 	foundedUser.Password = updatedUser.Password
-	if err := db.Save(&foundedUser).Error; err != nil {
+	if err := database.DB.DB.Save(&foundedUser).Error; err != nil {
 		loggerInst.Error(r.Context(), "Error updating user in the database", err)
 		http.Error(w, "Error updating user in the database", http.StatusInternalServerError)
 		return
@@ -157,7 +149,7 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var checkUser models.AuthUser
-	result := db.Where("username = ?", updatedUser.Username).First(&checkUser)
+	result := database.DB.DB.Where("username = ?", updatedUser.Username).First(&checkUser)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			loggerInst.Error(r.Context(), "The user does not exist, you cant change password..", result.Error)
@@ -177,7 +169,7 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	checkUser.Password = string(hashedPassword)
-	if err := db.Save(&checkUser).Error; err != nil {
+	if err := database.DB.DB.Save(&checkUser).Error; err != nil {
 		loggerInst.Error(r.Context(), "Error while updating password.", err)
 		http.Error(w, "Error while updating password", http.StatusInternalServerError)
 		return
@@ -192,7 +184,7 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 func ChangeUsername(w http.ResponseWriter, r *http.Request) {
 	loggerInst := r.Context().Value(logger.LoggerKey).(*logger.LogInstance)
 	vars := mux.Vars(r)
-	username := vars["username"] 
+	username := vars["username"]
 	if username == "" {
 		loggerInst.Error(r.Context(), "The username must be entered.")
 		http.Error(w, "The username must be entered.", http.StatusBadRequest)
@@ -200,14 +192,14 @@ func ChangeUsername(w http.ResponseWriter, r *http.Request) {
 	}
 	var newUsernamePayload struct {
 		Username string `json:"username"`
-	} 
+	}
 	if err := json.NewDecoder(r.Body).Decode(&newUsernamePayload); err != nil {
 		loggerInst.Error(r.Context(), "Error in decode operation. %v", err)
 	}
 	newUsername := newUsernamePayload.Username
 	//check the user is exist ?
-	var existsUser models.AuthUser 
-	result := db.Where("username = ?", username).First(&existsUser)
+	var existsUser models.AuthUser
+	result := database.DB.DB.Where("username = ?", username).First(&existsUser)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			loggerInst.Error(r.Context(), "The user does not exist, you cant change username..", result.Error)
@@ -221,7 +213,7 @@ func ChangeUsername(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	var duplicateUser models.AuthUser
-	result = db.Where("username = ?", newUsername).First(&duplicateUser)
+	result = database.DB.DB.Where("username = ?", newUsername).First(&duplicateUser)
 	if result.Error == nil {
 		loggerInst.Error(r.Context(), "The new username is already taken.")
 		http.Error(w, "The new username is already taken.", http.StatusConflict)
@@ -234,7 +226,7 @@ func ChangeUsername(w http.ResponseWriter, r *http.Request) {
 
 	// Update the username
 	existsUser.Username = newUsername
-	if err := db.Save(&existsUser).Error; err != nil {
+	if err := database.DB.DB.Save(&existsUser).Error; err != nil {
 		loggerInst.Error(r.Context(), "Error while updating username.", err)
 		http.Error(w, "Error while updating username.", http.StatusInternalServerError)
 		return
@@ -264,7 +256,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	}
 	//check whether the user is already registered
 	var existingUser models.AuthUser
-	result := db.Where("username = ?", authUser.Username).First(&existingUser)
+	result := database.DB.DB.Where("username = ?", authUser.Username).First(&existingUser)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			fmt.Println("The user does not exist")
@@ -287,7 +279,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	authUser.Password = string(hashedPassword)
-	if err := db.Create(&authUser).Error; err != nil {
+	if err := database.DB.DB.Create(&authUser).Error; err != nil {
 		http.Error(w, "Could not create user", http.StatusBadRequest)
 		loggerInst.Error(r.Context(), "Could not create user")
 		return
@@ -308,7 +300,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	var input models.AuthUser
 	json.NewDecoder(r.Body).Decode(&input)
 
-	if err := db.Where("username = ?", input.Username).First(&user).Error; err != nil {
+	if err := database.DB.DB.Where("username = ?", input.Username).First(&user).Error; err != nil {
 		http.Error(w, "There is no such user.", http.StatusUnauthorized)
 		loggerInst.Error(r.Context(), "There is no such user.", err)
 		return

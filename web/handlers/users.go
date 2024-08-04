@@ -4,23 +4,33 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"product_management/database"
 	models "product_management/models"
+	"product_management/repository"
 
 	"github.com/gorilla/mux"
 )
 
+var dbRepository repository.DbRepository
+
+func SetUserRepo(dbRepo repository.DbRepository) {
+	dbRepository = dbRepo
+
+}
+
 func GetUser(w http.ResponseWriter, r *http.Request) {
-	var user models.User
+	var user *models.User
 	vars := mux.Vars(r)
 	id := vars["id"]
 	if id == "" {
 		http.Error(w, "Id is required to find user", http.StatusBadRequest)
 		return
 	}
-	if err := database.DB.DB.First(&user, "username = ?", id); err != nil {
+	user, err := dbRepository.GetUserById(id)
+	if err != nil {
+		fmt.Print("Error getting user from db.. %v", err)
 
 	}
+
 	jsonResp, err := json.Marshal(user)
 	if err != nil {
 		fmt.Print("Error in marshal operation %v", err)
@@ -34,9 +44,9 @@ func GetUser(w http.ResponseWriter, r *http.Request) {
 }
 func GetUsers(w http.ResponseWriter, r *http.Request) {
 	var users []models.User
-	if err := database.DB.DB.Find(&users); err != nil {
-		fmt.Errorf("Error in fetching users from db %v", err)
-
+	users, err := dbRepository.GetAllUsers()
+	if err != nil {
+		fmt.Print("Error getting users from db.. %v", err)
 	}
 	jsonResp, err := json.Marshal(users)
 	if err != nil {

@@ -18,7 +18,7 @@ type DbInstance struct {
 
 var DB DbInstance
 
-func ConnectDb() DbInstance {
+func ConnectDb(dbCreated chan bool) DbInstance {
 	dsn := fmt.Sprintf(
 		"host=dbauth user=%s password=%s dbname=%s port=5432 sslmode=disable TimeZone=Asia/Shanghai",
 		os.Getenv("POSTGRES_USER"),
@@ -37,6 +37,7 @@ func ConnectDb() DbInstance {
 
 		if err == nil {
 			log.Println("Connected to the database successfully.")
+			dbCreated <- true
 			break
 		}
 

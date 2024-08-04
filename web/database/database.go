@@ -18,7 +18,10 @@ type DbInstance struct {
 
 var DB DbInstance
 
-func ConnectDb() DbInstance {
+func GetDb() *gorm.DB {
+	return DB.DB
+}
+func ConnectDb(dbConnected chan bool) DbInstance {
 	dsn := fmt.Sprintf(
 		"host=dbweb user=%s password=%s dbname=%s port=5432 sslmode=disable TimeZone=Asia/Shanghai",
 		os.Getenv("POSTGRES_USER"),
@@ -37,6 +40,7 @@ func ConnectDb() DbInstance {
 
 		if err == nil {
 			log.Println("Connected to the database successfully.")
+			dbConnected <- true
 			break
 		}
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	handler "auth-service/handlers"
 	"auth-service/logger"
 	"auth-service/middleware"
 	"auth-service/routes"
@@ -13,9 +12,13 @@ import (
 )
 
 func main() {
-	dbInst := database.ConnectDb()
+	dbCreated := make(chan bool)
+	go func() {
+		database.ConnectDb(dbCreated)
+	}()
+
 	logger.InitLog()
-	handler.InitDb(dbInst)
+	<-dbCreated
 	router := mux.NewRouter()
 	router.Use(middleware.AccessLogger)
 

@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -26,10 +27,11 @@ type Claims struct {
 }
 
 func Delete(w http.ResponseWriter, r *http.Request) {
+	log.Print("HERE")
 	loggerInst := r.Context().Value(logger.LoggerKey).(*logger.LogInstance)
 	vars := mux.Vars(r)
 	username := vars["username"]
-	if username != "" {
+	if username == "" {
 		loggerInst.Error(r.Context(), "The username must be entered.")
 		http.Error(w, "The username must be entered.", http.StatusBadRequest)
 		return
@@ -52,31 +54,40 @@ func Delete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error in deleting user", http.StatusInternalServerError)
 		return
 	}
-	req := models.RequestPayload{
-		OldUsername: username,
-	}
-	kafka.ProduceEvent(req, "delete-user")
+	log.Print("HERE2")
+	kafka.ProduceEvent(foundedUser.Username, "delete-user") //only send the string value
 	loggerInst.Info(r.Context(), "The user succ. deleted.")
+	msg := "The user " + username + " deleted successfully."
+	w.Write([]byte(msg))
 	w.WriteHeader(http.StatusOK)
 
 }
 
-func Update(w http.ResponseWriter, r *http.Request) {
+func UpdateUsernameAndPasswd(w http.ResponseWriter, r *http.Request) {
 	loggerInst := r.Context().Value(logger.LoggerKey).(*logger.LogInstance)
 	vars := mux.Vars(r)
 	username := vars["username"] //exists username
-	if username != "" {
+
+	if username == "" {
 		loggerInst.Error(r.Context(), "The username must be entered.")
 		http.Error(w, "The username must be entered.", http.StatusBadRequest)
 		return
 	}
 
-	var updatedUser models.AuthUser
+	var updatedUser models.AuthUser //bodyde gönderilen yeni username ve password bilgisi
 	if err := json.NewDecoder(r.Body).Decode(&updatedUser); err != nil {
 		loggerInst.Error(r.Context(), "The user couldn't found.", err)
 		http.Error(w, "The user couldn't found.", http.StatusInternalServerError)
 		return
 	}
+
+	if updatedUser.Username == "" && updatedUser.Password == "" {
+		loggerInst.Error(r.Context(), "The new username and password must be entered.")
+		http.Error(w, "The new username and password must be entered.", http.StatusBadRequest)
+		return
+	}
+
+	//check the user is in the db or not
 	var foundedUser models.AuthUser
 	if err := database.DB.DB.Where("username = ?", username).First(&foundedUser).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -88,31 +99,39 @@ func Update(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	if updatedUser.Username != "" {
-		foundedUser.Username = updatedUser.Username
-	}
-	if updatedUser.Password != "" {
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(updatedUser.Password), bcrypt.DefaultCost)
-		if err != nil {
-			loggerInst.Error(r.Context(), "Error hashing password", err)
-			http.Error(w, "Error hashing password", http.StatusInternalServerError)
-			return
-		}
-		foundedUser.Password = string(hashedPassword)
 
+	var okNewUsername models.AuthUser
+	result := database.DB.DB.Where("username = ?", updatedUser.Username).First(&okNewUsername)
+	if result.Error == nil {
+		loggerInst.Error(r.Context(), "The new username is already taken.")
+		http.Error(w, "The new username is already taken.", http.StatusConflict)
+		return
+	} else if result.Error != gorm.ErrRecordNotFound {
+		loggerInst.Error(r.Context(), "Error checking new username.", result.Error)
+		http.Error(w, "Error checking new username.", http.StatusInternalServerError)
+		return
 	}
-	foundedUser.Password = updatedUser.Password
+
+	foundedUser.Username = updatedUser.Username
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(updatedUser.Password), bcrypt.DefaultCost)
+	if err != nil {
+		loggerInst.Error(r.Context(), "Error hashing password", err)
+		http.Error(w, "Error hashing password", http.StatusInternalServerError)
+		return
+	}
+	foundedUser.Password = string(hashedPassword)
+
 	if err := database.DB.DB.Save(&foundedUser).Error; err != nil {
 		loggerInst.Error(r.Context(), "Error updating user in the database", err)
 		http.Error(w, "Error updating user in the database", http.StatusInternalServerError)
 		return
 	}
-	req := models.RequestPayload{
+	webUser := models.RequestPayload{
 		NewUsername: foundedUser.Username,
 		OldUsername: username,
 	}
 	//sync. web db
-	kafka.ProduceEvent(req, "update-user") //only send username field.
+	kafka.ProduceEvent(webUser, "update-user") //send the structure
 	loggerInst.Info(r.Context(), "The user is updated succ.")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("The updated successsfully."))

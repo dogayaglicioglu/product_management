@@ -52,7 +52,7 @@ func (kc *KafkaConsumer) Start() error {
 func InitConsumer(kafkaCreated chan bool) {
 	config := SaramaConfig()
 	brokers := []string{"kafka:9092"}
-	topics := []string{"register-user", "change-username"}
+	topics := []string{"register-user", "change-username", "update-user", "delete-user"}
 	kafkaConsumer, err := NewKafkaConsumer(brokers, "web-service-group-new", topics, config, kafkaCreated)
 	if err != nil {
 		log.Fatalf("Failed to create Kafka consumer: %v", err)
@@ -141,16 +141,7 @@ func handlerUpdateUser(msg *sarama.ConsumerMessage) {
 }
 
 func handlerDeleteUser(msg *sarama.ConsumerMessage) {
-	var msgPayload map[string]interface{}
-	if err := json.Unmarshal(msg.Value, msgPayload); err != nil {
-		log.Print("Error in unmarshal op. %v", err)
-	}
-	username, ok := msgPayload["oldUsername"].(string)
-	if !ok {
-		fmt.Println("Invalid data format: 'oldUsername' is missing or not a string")
-		return
-	}
-
+	username := string(msg.Value)
 	result := database.DB.DB.Where("username = ?", username).Delete(&models.User{})
 	if result.Error != nil {
 		log.Printf("Failed to delete user in web database: %v \n", result.Error)

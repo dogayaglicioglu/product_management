@@ -26,34 +26,40 @@ func ProduceEvent(data interface{}, topic string) {
 		}
 
 	}
+	if topic == "delete-user" {
+		msg = &sarama.ProducerMessage{
+			Topic: "delete-user",
+			Value: sarama.StringEncoder(data.(string)),
+		}
+	}
+	if topic == "update-user" {
+		jsonData, err := json.Marshal(data.(models.RequestPayload))
+		if err != nil {
+			log.Printf("Error in marshal operation: %v", err)
+			return
+		}
+		msg = &sarama.ProducerMessage{
+			Topic: topic,
+			Value: sarama.ByteEncoder(jsonData),
+		}
+	}
 	if topic == "change-username" {
-		log.Printf("Data: %+v", data) 
+		log.Printf("Data: %+v", data)
 		jsonData, err := json.Marshal(data.(models.RequestPayload))
 		if err != nil {
 			log.Printf("Error in marshal operation: %v", err)
 			return
 		}
 
-		log.Printf("JSON Data: %s", string(jsonData)) 
+		log.Printf("JSON Data: %s", string(jsonData))
 
 		msg = &sarama.ProducerMessage{
 			Topic: topic,
 			Value: sarama.ByteEncoder(jsonData),
 		}
 	}
-	if topic == "delete-user" {
-		jsonData, err := json.Marshal(data)
-		if err != err {
-			log.Print("Error in marshal operation %v", err)
-		}
 
-		msg = &sarama.ProducerMessage{
-			Topic: "delete-user",
-			Value: sarama.ByteEncoder(jsonData),
-		}
-	}
-
-	fmt.Print("pRODUCER CREATED AND WAITING TO SEND MESSAGE...")
+	fmt.Print("PRODUCER CREATED AND WAITING TO SEND MESSAGE...")
 	_, _, err := producer.SendMessage(msg)
 	if err != nil {
 		fmt.Printf("failed to send message: %v\n", err)

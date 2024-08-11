@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type DbRepository interface {
+type WebRepository interface {
 	GetUserById(id string) (*models.User, error)
 	GetAllUsers() ([]models.User, error)
 }
@@ -16,7 +16,7 @@ type dbRepo struct {
 	db *gorm.DB
 }
 
-func NewUserRepository(db *gorm.DB) DbRepository {
+func NewWebRepository(db *gorm.DB) WebRepository {
 	return &dbRepo{db: db} //dbRepo should implement DbRepository
 }
 

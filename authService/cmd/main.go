@@ -3,6 +3,7 @@ package main
 import (
 	"auth-service/logger"
 	"auth-service/middleware"
+	"auth-service/repository"
 	"auth-service/routes"
 	"net/http"
 
@@ -21,7 +22,8 @@ func main() {
 	<-dbCreated
 	router := mux.NewRouter()
 	router.Use(middleware.AccessLogger)
+	authRepo := repository.NewAuthRepository(database.GetDb())
 
-	routes.SetUpRoutes(router)
+	routes.SetUpRoutes(router, authRepo)
 	http.ListenAndServe(":8082", router)
 }

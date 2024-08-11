@@ -1,33 +1,24 @@
 package handler
 
 import (
-	"auth-service/database"
 	"auth-service/kafka"
 	"auth-service/logger"
 	"auth-service/models"
+	"auth-service/repository"
 	"auth-service/verify"
 	"encoding/json"
-	"errors"
-	"fmt"
-	"log"
 	"net/http"
-	"time"
 
-	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/mux"
-	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
-var jwtKey = []byte("my_secret")
+var authRepository repository.AuthRepository
 
-type Claims struct {
-	Username string `json:"username"`
-	jwt.RegisteredClaims
+func SetAuthRepo(authRepo repository.AuthRepository) {
+	authRepository = authRepo
 }
 
 func Delete(w http.ResponseWriter, r *http.Request) {
-	log.Print("HERE")
 	loggerInst := r.Context().Value(logger.LoggerKey).(*logger.LogInstance)
 	vars := mux.Vars(r)
 	username := vars["username"]
@@ -37,25 +28,14 @@ func Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var foundedUser models.AuthUser
-	result := database.DB.DB.Where("username = ?", username).First(&foundedUser)
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			loggerInst.Error(r.Context(), "The user is not found, so you can't delete it", result.Error)
-			http.Error(w, "The user is not found, so you can't delete it", http.StatusNotFound)
-		} else {
-			loggerInst.Error(r.Context(), "Error fetching user from the database", result.Error)
-			http.Error(w, "Error fetching user from the database", http.StatusInternalServerError)
-		}
+	err, errMsg := authRepository.DeleteUser(username, r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		loggerInst.Error(r.Context(), errMsg, err)
 		return
 	}
-	if err := database.DB.DB.Delete(&foundedUser).Error; err != nil {
-		loggerInst.Error(r.Context(), "Error in deleting user", err)
-		http.Error(w, "Error in deleting user", http.StatusInternalServerError)
-		return
-	}
-	log.Print("HERE2")
-	kafka.ProduceEvent(foundedUser.Username, "delete-user") //only send the string value
+
+	kafka.ProduceEvent(username, "delete-user") //only send the string value
 	loggerInst.Info(r.Context(), "The user succ. deleted.")
 	msg := "The user " + username + " deleted successfully."
 	w.Write([]byte(msg))
@@ -87,44 +67,12 @@ func UpdateUsernameAndPasswd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//check the user is in the db or not
-	var foundedUser models.AuthUser
-	if err := database.DB.DB.Where("username = ?", username).First(&foundedUser).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			loggerInst.Error(r.Context(), "User not found.", err)
-			http.Error(w, "User not found", http.StatusNotFound)
-		} else {
-			loggerInst.Error(r.Context(), "Error fetching user from the database.", err)
-			http.Error(w, "Error fetching user from the database", http.StatusInternalServerError)
-		}
-		return
-	}
-
-	var okNewUsername models.AuthUser
-	result := database.DB.DB.Where("username = ?", updatedUser.Username).First(&okNewUsername)
-	if result.Error == nil {
-		loggerInst.Error(r.Context(), "The new username is already taken.")
-		http.Error(w, "The new username is already taken.", http.StatusConflict)
-		return
-	} else if result.Error != gorm.ErrRecordNotFound {
-		loggerInst.Error(r.Context(), "Error checking new username.", result.Error)
-		http.Error(w, "Error checking new username.", http.StatusInternalServerError)
-		return
-	}
-
-	foundedUser.Username = updatedUser.Username
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(updatedUser.Password), bcrypt.DefaultCost)
+	foundedUser, errMsg, err := authRepository.UpdateUser(updatedUser, username, r.Context())
 	if err != nil {
-		loggerInst.Error(r.Context(), "Error hashing password", err)
-		http.Error(w, "Error hashing password", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		loggerInst.Error(r.Context(), errMsg, err)
 		return
-	}
-	foundedUser.Password = string(hashedPassword)
 
-	if err := database.DB.DB.Save(&foundedUser).Error; err != nil {
-		loggerInst.Error(r.Context(), "Error updating user in the database", err)
-		http.Error(w, "Error updating user in the database", http.StatusInternalServerError)
-		return
 	}
 	webUser := models.RequestPayload{
 		NewUsername: foundedUser.Username,
@@ -167,33 +115,12 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
-	var checkUser models.AuthUser
-	result := database.DB.DB.Where("username = ?", updatedUser.Username).First(&checkUser)
-	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			loggerInst.Error(r.Context(), "The user does not exist, you cant change password..", result.Error)
-			http.Error(w, "The user does not exist, you cant change password..", http.StatusInternalServerError)
-			return
-		} else {
-			// another error is occured
-			loggerInst.Error(r.Context(), "Error checking user registration", result.Error)
-			http.Error(w, "Error checking user registration", http.StatusInternalServerError)
-			return
-		}
-	}
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(updatedUser.Password), bcrypt.DefaultCost)
-	if err != nil {
-		http.Error(w, "Server error", http.StatusInternalServerError)
-		loggerInst.Error(r.Context(), "Error in generating hashed password.")
-		return
-	}
-	checkUser.Password = string(hashedPassword)
-	if err := database.DB.DB.Save(&checkUser).Error; err != nil {
-		loggerInst.Error(r.Context(), "Error while updating password.", err)
-		http.Error(w, "Error while updating password", http.StatusInternalServerError)
-		return
-	}
 
+	errMsg, err := authRepository.ChangePassword(updatedUser, r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		loggerInst.Error(r.Context(), errMsg, err)
+	}
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Password updated successsfully."))
 	loggerInst.Info(r.Context(), "Password updated successfully.")
@@ -216,44 +143,15 @@ func ChangeUsername(w http.ResponseWriter, r *http.Request) {
 		loggerInst.Error(r.Context(), "Error in decode operation. %v", err)
 	}
 	newUsername := newUsernamePayload.Username
-	//check the user is exist ?
-	var existsUser models.AuthUser
-	result := database.DB.DB.Where("username = ?", username).First(&existsUser)
-	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			loggerInst.Error(r.Context(), "The user does not exist, you cant change username..", result.Error)
-			http.Error(w, "The user does not exist, you cant change username..", http.StatusNotFound)
-			return
-		} else {
-			// another error is occured
-			loggerInst.Error(r.Context(), "Error checking user registration.", result.Error)
-			http.Error(w, "Error checking user registration.", http.StatusInternalServerError)
-			return
-		}
-	}
-	var duplicateUser models.AuthUser
-	result = database.DB.DB.Where("username = ?", newUsername).First(&duplicateUser)
-	if result.Error == nil {
-		loggerInst.Error(r.Context(), "The new username is already taken.")
-		http.Error(w, "The new username is already taken.", http.StatusConflict)
-		return
-	} else if result.Error != gorm.ErrRecordNotFound {
-		loggerInst.Error(r.Context(), "Error checking new username.", result.Error)
-		http.Error(w, "Error checking new username.", http.StatusInternalServerError)
+	err, errMsg := authRepository.ChangeUsername(username, newUsername, r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		loggerInst.Error(r.Context(), errMsg, err)
 		return
 	}
-
-	// Update the username
-	existsUser.Username = newUsername
-	if err := database.DB.DB.Save(&existsUser).Error; err != nil {
-		loggerInst.Error(r.Context(), "Error while updating username.", err)
-		http.Error(w, "Error while updating username.", http.StatusInternalServerError)
-		return
-	}
-
 	webUser := models.RequestPayload{
 		OldUsername: username,
-		NewUsername: existsUser.Username,
+		NewUsername: newUsername,
 	}
 
 	// Sync web db in here
@@ -273,34 +171,10 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		loggerInst.Error(r.Context(), "Invalid request payload", err)
 		return
 	}
-	//check whether the user is already registered
-	var existingUser models.AuthUser
-	result := database.DB.DB.Where("username = ?", authUser.Username).First(&existingUser)
-	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			fmt.Println("The user does not exist")
-		} else {
-			// another error is occured
-			http.Error(w, "Error checking user registration", http.StatusInternalServerError)
-			loggerInst.Error(r.Context(), "Error checking user registration", result.Error)
-			return
-		}
-	} else {
-		http.Error(w, "User already exists", http.StatusConflict)
-		return
-	}
-	//if the user is not registered, register it
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(authUser.Password), bcrypt.DefaultCost)
+	err, errMsg := authRepository.Register(authUser, r.Context())
 	if err != nil {
-		http.Error(w, "Server error", http.StatusInternalServerError)
-		loggerInst.Error(r.Context(), "Error in generating hashed password.")
-		return
-	}
-
-	authUser.Password = string(hashedPassword)
-	if err := database.DB.DB.Create(&authUser).Error; err != nil {
-		http.Error(w, "Could not create user", http.StatusBadRequest)
-		loggerInst.Error(r.Context(), "Could not create user")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		loggerInst.Error(r.Context(), errMsg, err)
 		return
 	}
 
@@ -311,49 +185,28 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	loggerInst.Info(r.Context(), "The msg succ. sent to kafka...")
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("User is registered."))
+
 }
 
 func Login(w http.ResponseWriter, r *http.Request) {
 	loggerInst := r.Context().Value(logger.LoggerKey).(*logger.LogInstance)
-	var user models.AuthUser
+
 	var input models.AuthUser
 	json.NewDecoder(r.Body).Decode(&input)
-
-	if err := database.DB.DB.Where("username = ?", input.Username).First(&user).Error; err != nil {
-		http.Error(w, "There is no such user.", http.StatusUnauthorized)
-		loggerInst.Error(r.Context(), "There is no such user.", err)
-		return
-	}
-
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
-		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
-		loggerInst.Error(r.Context(), "Invalid username or password.", err)
-
-		return
-	}
-	expirationTime := time.Now().Add(5 * time.Minute)
-	claims := &Claims{
-		Username: user.Username,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(expirationTime),
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(jwtKey)
+	tokenStr, errMsg, expirationTime, err := authRepository.Login(input, r.Context())
 	if err != nil {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		loggerInst.Error(r.Context(), "Internal Error.", err)
+		http.Error(w, err.Error(), http.StatusExpectationFailed)
+		loggerInst.Error(r.Context(), errMsg, err)
 		return
 	}
 
 	http.SetCookie(w, &http.Cookie{
 		Name:    "token",
-		Value:   tokenString,
+		Value:   tokenStr,
 		Expires: expirationTime,
 	})
-	loggerInst.Info(r.Context(), "Successfully logged in.")
 
+	loggerInst.Info(r.Context(), "Successfully logged in.")
 	w.Write([]byte("Successfully logged in."))
 
 }

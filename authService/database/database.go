@@ -18,6 +18,9 @@ type DbInstance struct {
 
 var DB DbInstance
 
+func GetDb() *gorm.DB {
+	return DB.DB
+}
 func ConnectDb(dbCreated chan bool) DbInstance {
 	dsn := fmt.Sprintf(
 		"host=dbauth user=%s password=%s dbname=%s port=5432 sslmode=disable TimeZone=Asia/Shanghai",

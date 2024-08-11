@@ -26,7 +26,7 @@ func main() {
 	}()
 	<-dbCreated
 	<-kafkaCreated
-	webRepo := repository.NewUserRepository(database.GetDb())
+	webRepo := repository.NewWebRepository(database.GetDb())
 	router := mux.NewRouter()
 	routes.SetUpRoutes(router, webRepo)
 

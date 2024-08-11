@@ -10,10 +10,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var dbRepository repository.DbRepository
+var webRepository repository.WebRepository
 
-func SetUserRepo(dbRepo repository.DbRepository) {
-	dbRepository = dbRepo
+func SetUserRepo(webRepo repository.WebRepository) {
+	webRepository = webRepo
 
 }
 
@@ -25,7 +25,7 @@ func GetUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Id is required to find user", http.StatusBadRequest)
 		return
 	}
-	user, err := dbRepository.GetUserById(id)
+	user, err := webRepository.GetUserById(id)
 	if err != nil {
 		fmt.Print("Error getting user from db.. %v", err)
 
@@ -44,7 +44,7 @@ func GetUser(w http.ResponseWriter, r *http.Request) {
 }
 func GetUsers(w http.ResponseWriter, r *http.Request) {
 	var users []models.User
-	users, err := dbRepository.GetAllUsers()
+	users, err := webRepository.GetAllUsers()
 	if err != nil {
 		fmt.Print("Error getting users from db.. %v", err)
 	}

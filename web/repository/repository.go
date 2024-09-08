@@ -32,7 +32,7 @@ func (d *dbRepo) GetAllUsers() ([]models.User, error) {
 
 func (d *dbRepo) GetUserById(id string) (*models.User, error) {
 	var user models.User
-	if result := d.db.First(&user, "username = ?", id); result.Error != nil {
+	if result := d.db.First(&user, "id = ?", id); result.Error != nil {
 		return nil, result.Error
 	}
 	return &user, nil

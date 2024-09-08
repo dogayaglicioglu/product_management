@@ -124,19 +124,15 @@ services:
     depends_on:
       - elasticsearch
 
-  prometheus:
-    image: prom/prometheus:latest
+  cache:
+    image: redis:7.4.0-alpine
+    restart: always
     ports:
-      - "9090:9090"
-    volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-
-  grafana:
-    image: grafana/grafana:latest
-    ports:
-      - "3000:3000"
-    depends_on:
-      - prometheus
+      - '6379:6379'
+    environment:
+      REDIS_PASSWORD: eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
+    volumes: 
+      - cache:/data
 
 volumes:
   zookeeper-volume:
@@ -145,4 +141,5 @@ volumes:
   kafka-volume:
   es_data:
     driver: local
-  grafana-storage:
+  cache:
+    driver: local
